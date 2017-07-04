@@ -7,9 +7,9 @@ Video Stream Collector converts video file or webcam feed to JSON messages and s
 - Kafka - 2.11-0.10.2.0
 - OpenCV - 3.2.0
 
-You can build and run this application using below commands. Please check src/main/resources/stream-collector.properties for configuration details.
+Please check src/main/resources/stream-collector.properties for configuration details.
 
-Run mvn clean command to install opencv-320.jar in local maven repository. Now you can execute below command to start the VideoStreamCollector.
+Run "mvn clean" command to install opencv-320.jar in local maven repository. Now you can execute below command to start the VideoStreamCollector.
 
 ```sh
 mvn clean package exec:java -Dexec.mainClass="com.iot.video.app.kafka.collector.VideoStreamCollector"

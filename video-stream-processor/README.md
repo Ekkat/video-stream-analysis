@@ -8,7 +8,9 @@ Video Stream Processor process kafka JSON messages. It uses OpenCV library for m
 - OpenCV - 3.2.0
 - Spark - 2.1.1
 
-Run mvn clean command to install opencv-320.jar in local maven repository. Now you can execute below command to start the VideoStreamProcessor.
+Please check src/main/resources/stream-processor.properties for configuration details.
+
+Run "mvn clean" command to install opencv-320.jar in local maven repository. Now you can execute below command to start the VideoStreamProcessor.
 
 ```sh
 mvn clean package exec:java -Dexec.mainClass="com.iot.video.app.spark.processor.VideoStreamProcessor"
