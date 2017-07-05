@@ -47,12 +47,13 @@ public class VideoMotionDetector implements Serializable {
 	public static VideoEventData detectMotion(String camId, Iterator<VideoEventData> frames, String outputDir) throws Exception {
 		VideoEventData currentProcessedEventData = new VideoEventData();
 		Mat frame = new Mat();
-		Mat outerFame = new Mat();
+		Mat copyFrame = null;
+		Mat grayFrame = new Mat();
+		Mat firstFrame = null;
+		Mat deltaFrame = new Mat();
+		Mat thresholdFrame = new Mat();	
 		ArrayList<Rect> rectArray = new ArrayList<Rect>();
-		Mat tempFrame = null;
-		Mat diffFrame = null;
-		Mat imag = null;
-		boolean isFirstFrame = true;
+		
 		//sort by timestamp
 		ArrayList<VideoEventData> sortedList = new ArrayList<VideoEventData>();
 		while(frames.hasNext()){
@@ -60,43 +61,34 @@ public class VideoMotionDetector implements Serializable {
 		}
 		sortedList.sort(Comparator.comparing(VideoEventData::getTimestamp));
 		logger.warn("cameraId="+camId+" total frames="+sortedList.size());
+		
 		//iterate and detect motion
-		for(VideoEventData eventData : sortedList) {
-				frame = getMat(eventData);
-				imag = frame.clone();
-				outerFame = new Mat(frame.size(), CvType.CV_8UC1);
-				Imgproc.cvtColor(frame, outerFame, Imgproc.COLOR_BGR2GRAY);
-				Imgproc.GaussianBlur(outerFame, outerFame, new Size(3, 3), 0);
-				logger.warn("cameraId="+camId+" timestamp="+eventData.getTimestamp());
-				//first
-				if (isFirstFrame) {
-					diffFrame = new Mat(outerFame.size(), CvType.CV_8UC1);
-					tempFrame = new Mat(outerFame.size(), CvType.CV_8UC1);
-					diffFrame = outerFame.clone();
-					isFirstFrame = false;
-				}else{
-					Core.subtract(outerFame, tempFrame, diffFrame);
-					Imgproc.adaptiveThreshold(diffFrame, diffFrame, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C,Imgproc.THRESH_BINARY_INV, 5, 2);
-					rectArray = getContourArea(diffFrame,imag);
-					if (rectArray.size() > 0) {
-						Iterator<Rect> it2 = rectArray.iterator();
-						while (it2.hasNext()) {
-							Rect obj = it2.next();
-							Imgproc.rectangle(imag, obj.br(), obj.tl(), new Scalar(0, 255, 0), 2);
-						}
-						logger.warn("Motion detected for cameraId="+eventData.getCameraId()+", timestamp="+eventData.getTimestamp());
-						//save image file
-						saveImage(imag,eventData,outputDir);
+		for (VideoEventData eventData : sortedList) {
+			frame = getMat(eventData);
+			copyFrame = frame.clone();
+			grayFrame = new Mat(frame.size(), CvType.CV_8UC1);
+			Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
+			Imgproc.GaussianBlur(grayFrame, grayFrame, new Size(3, 3), 0);
+			logger.warn("cameraId=" + camId + " timestamp=" + eventData.getTimestamp());
+			//first
+			if (firstFrame != null) {
+				Core.absdiff(firstFrame, grayFrame, deltaFrame);
+				Imgproc.threshold(deltaFrame, thresholdFrame, 10, 255, Imgproc.THRESH_BINARY);
+				rectArray = getContourArea(thresholdFrame);
+				if (rectArray.size() > 0) {
+					Iterator<Rect> it2 = rectArray.iterator();
+					while (it2.hasNext()) {
+						Rect obj = it2.next();
+						Imgproc.rectangle(copyFrame, obj.br(), obj.tl(), new Scalar(0, 255, 0), 2);
 					}
-				 }
-				tempFrame = outerFame.clone();
+					logger.warn("Motion detected for cameraId=" + eventData.getCameraId() + ", timestamp="+ eventData.getTimestamp());
+					//save image file
+					saveImage(copyFrame, eventData, outputDir);
+				}
+			  }
+				firstFrame = grayFrame;
 				currentProcessedEventData = eventData;
-			 }	
-				//release resources
-				frame.release();
-				outerFame.release();
-				tempFrame.release();
-				diffFrame.release();
+		   }
 			return currentProcessedEventData;
 		}
 	
@@ -108,9 +100,9 @@ public class VideoMotionDetector implements Serializable {
 	}
 	
 	//Detect contours
-	private static ArrayList<Rect> getContourArea(Mat outmat, Mat imag) {
+	private static ArrayList<Rect> getContourArea(Mat mat) {
 		Mat hierarchy = new Mat();
-		Mat image = outmat.clone();
+		Mat image = mat.clone();
 		List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
 		Imgproc.findContours(image, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 		Rect rect = null;
@@ -124,8 +116,6 @@ public class VideoMotionDetector implements Serializable {
 				arr.add(rect);
 			}
 		}
-		hierarchy.release();
-		image.release();
 		return arr;
 	}
 	
